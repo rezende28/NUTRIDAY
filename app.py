@@ -288,26 +288,29 @@ st.markdown("---")
 st.markdown("### Exportar Documento")
 
 if st.button("Gerar Relatório em PDF"):
-    pdf_data = criar_pdf_plano(
-        nome_paciente,
-        sexo,
-        idade,
-        peso,
-        altura,
-        imc,
-        classificacao,
-        peso_ideal,
-        restricoes,
-        st.session_state.dieta,
-        total_kcal,
-        total_prot,
-        total_carb,
-        total_gord,
-    )
+    try:
+        pdf_data = criar_pdf_plano(
+            nome_paciente=str(nome_paciente or "Paciente"),
+            sexo=str(sexo),
+            idade=int(idade or 0),
+            peso=float(peso or 0.0),
+            altura=float(altura or 0.0),
+            imc=float(imc or 0.0),
+            classificacao=str(classificacao),
+            peso_ideal=float(peso_ideal or 0.0),
+            restricoes=str(restricoes or ""),
+            dieta=st.session_state.get("dieta", {}),
+            total_kcal=float(total_kcal or 0.0),
+            total_prot=float(total_prot or 0.0),
+            total_carb=float(total_carb or 0.0),
+            total_gord=float(total_gord or 0.0),
+        )
 
-    st.download_button(
-        label="Baixar Plano Alimentar (PDF)",
-        data=pdf_data,
-        file_name=f"NutriDAY_{nome_paciente.replace(' ', '_')}.pdf",
-        mime="application/pdf",
-    )
+        st.download_button(
+            label="Baixar Plano Alimentar (PDF)",
+            data=pdf_data,
+            file_name=f"NutriDAY_{str(nome_paciente).replace(' ', '_')}.pdf",
+            mime="application/pdf",
+        )
+    except Exception as e:
+        st.error(f"Erro ao gerar o relatório em PDF: {str(e)}")
