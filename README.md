@@ -1,6 +1,6 @@
 # 🥗 NutriDAY — Prescrição Nutricional & Gestão Clínica
 
-> Sistema web intuitivo e moderno para cálculo antropométrico, elaboração de planos alimentares com base na tabela TACO e geração de relatórios clínicos em PDF. Desenvolvido para a **Dra. Andressa Santos**.
+> Sistema web intuitivo e moderno para cálculo antropométrico, elaboração de planos alimentares com base na tabela TACO e geração de relatórios clínicos em PDF.
 
 ---
 
