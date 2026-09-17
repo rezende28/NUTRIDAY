@@ -13,7 +13,7 @@ from modulos.taco import carregar_tabela_taco
 # Configuração da Página
 st.set_page_config(page_title="NutriDAY — Dra. Andressa Santos", layout="wide")
 
-# Estilização CSS Clean & Profissional (Emerald Corporate)
+# Estilização CSS Clean & Profissional
 st.markdown(
     """
 <style>
@@ -22,7 +22,6 @@ st.markdown(
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    /* Header Profissional */
     .main-header {
         background: linear-gradient(135deg, #059669 0%, #047857 100%);
         padding: 24px 32px;
@@ -45,7 +44,6 @@ st.markdown(
         font-weight: 400;
     }
 
-    /* Card de Avaliação Antropométrica Customizado */
     .imc-card {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
@@ -81,7 +79,6 @@ st.markdown(
         color: #334155;
     }
 
-    /* Cores Personalizadas para as Classificações de IMC */
     .badge-verde {
         background-color: #dcfce7;
         color: #15803d;
@@ -95,7 +92,6 @@ st.markdown(
         color: #b91c1c;
     }
 
-    /* Botões */
     .stButton>button {
         border-radius: 8px;
         border: none;
@@ -110,7 +106,6 @@ st.markdown(
         color: white;
     }
 
-    /* Abas */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
@@ -172,18 +167,22 @@ with col_dados:
         "Altura (m)", min_value=0.5, max_value=2.5, value=1.72, step=0.01
     )
 
+    restricoes = st.text_input(
+        "Restrições Alimentares / Alergias / Intolerâncias",
+        placeholder="Ex: Intolerância à Lactose, Alergia a Frutos do Mar, Não consome glúten...",
+    )
+
 imc = calcular_imc(peso, altura)
 classificacao = classificar_imc(imc)
 peso_ideal = calcular_peso_ideal(altura)
 
-# Definição dinâmica da cor do Badge do IMC
 if classificacao == "Abaixo do Peso":
     badge_class = "badge-vermelho"
 elif classificacao == "Sobrepeso":
     badge_class = "badge-laranja"
 elif "Obesidade" in classificacao:
     badge_class = "badge-vermelho"
-else:  # Peso Normal
+else:
     badge_class = "badge-verde"
 
 with col_imc:
@@ -250,8 +249,24 @@ for i, ref in enumerate(refeicoes_nomes):
                 st.toast(f"Alimento '{alimento_sel}' adicionado com sucesso.")
 
         if st.session_state.dieta[ref]:
-            df_exibicao = pd.DataFrame(st.session_state.dieta[ref])
-            st.dataframe(df_exibicao, use_container_width=True)
+            st.markdown("##### Alimentos Adicionados:")
+            
+            # Tabela interativa com opção de remoção
+            items_para_remover = []
+            for idx, item in enumerate(st.session_state.dieta[ref]):
+                col_item_nome, col_item_qtd, col_item_kcal, col_item_del = st.columns([3, 1, 1, 1])
+                col_item_nome.write(f"• **{item['nome']}**")
+                col_item_qtd.write(f"{item['quantidade_g']} g")
+                col_item_kcal.write(f"{item['energia_kcal']} kcal")
+                if col_item_del.button("🗑️ Remover", key=f"del_{ref}_{idx}"):
+                    items_para_remover.append(idx)
+            
+            # Executa a remoção se algum botão foi clicado
+            if items_para_remover:
+                for idx in reversed(items_para_remover):
+                    removido = st.session_state.dieta[ref].pop(idx)
+                    st.toast(f"Alimento '{removido['nome']}' removido.")
+                st.rerun()
 
 st.markdown("---")
 
@@ -282,6 +297,7 @@ if st.button("Gerar Relatório em PDF"):
         imc,
         classificacao,
         peso_ideal,
+        restricoes,
         st.session_state.dieta,
         total_kcal,
         total_prot,

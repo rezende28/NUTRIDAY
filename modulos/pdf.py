@@ -5,7 +5,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 
-def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao, peso_ideal, dieta, total_kcal, total_prot, total_carb, total_gord):
+def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao, peso_ideal, restricoes, dieta, total_kcal, total_prot, total_carb, total_gord):
     """Gera o relatório em PDF assinado pela Dra. Andressa Santos usando ReportLab."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -54,6 +54,7 @@ def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao
     elements.append(Paragraph("Dra. Andressa Santos — Nutricionista Clínica", subtitle_style))
     
     # Dados do Paciente
+    restricao_txt = restricoes if restricoes.strip() else "Nenhuma relatada"
     dados_paciente = (
         f"<b>Paciente:</b> {nome_paciente} &nbsp;&nbsp;|&nbsp;&nbsp; "
         f"<b>Sexo:</b> {sexo} &nbsp;&nbsp;|&nbsp;&nbsp; "
@@ -61,7 +62,8 @@ def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao
         f"<b>Peso Atual:</b> {peso:.1f}kg &nbsp;&nbsp;|&nbsp;&nbsp; "
         f"<b>Altura:</b> {altura:.2f}m &nbsp;&nbsp;|&nbsp;&nbsp; "
         f"<b>IMC:</b> {imc:.2f} ({classificacao}) &nbsp;&nbsp;|&nbsp;&nbsp; "
-        f"<b>Peso Ideal:</b> {peso_ideal:.1f}kg"
+        f"<b>Peso Ideal:</b> {peso_ideal:.1f}kg<br/>"
+        f"<b>Alergias / Restrições Alimentares:</b> {restricao_txt}"
     )
     elements.append(Paragraph(dados_paciente, styles['Normal']))
     elements.append(Spacer(1, 15))
