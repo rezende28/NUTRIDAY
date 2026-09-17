@@ -20,7 +20,6 @@ def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao
     
     styles = getSampleStyleSheet()
     
-    # Estilos Customizados
     title_style = ParagraphStyle(
         'HeaderTitle',
         parent=styles['Heading1'],
@@ -49,11 +48,9 @@ def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao
         spaceAfter=6
     )
     
-    # Cabeçalho Oficial
     elements.append(Paragraph("NutriDAY — Plano Alimentar", title_style))
     elements.append(Paragraph("Dra. Andressa Santos — Nutricionista Clínica", subtitle_style))
     
-    # Dados do Paciente
     restricao_txt = restricoes if restricoes.strip() else "Nenhuma relatada"
     dados_paciente = (
         f"<b>Paciente:</b> {nome_paciente} &nbsp;&nbsp;|&nbsp;&nbsp; "
@@ -68,7 +65,6 @@ def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao
     elements.append(Paragraph(dados_paciente, styles['Normal']))
     elements.append(Spacer(1, 15))
     
-    # Detalhamento das Refeições
     tem_alimentos = False
     for refeicao, alimentos in dieta.items():
         if alimentos:
@@ -102,12 +98,10 @@ def criar_pdf_plano(nome_paciente, sexo, idade, peso, altura, imc, classificacao
     if not tem_alimentos:
         elements.append(Paragraph("Nenhum alimento cadastrado no plano alimentar.", styles['Italic']))
 
-    # Balanço Nutricional Diário
     elements.append(Spacer(1, 15))
     resumo_texto = f"<b>Balanço Nutricional Diário:</b> {total_kcal:.1f} kcal &nbsp;|&nbsp; Proteínas: {total_prot:.1f}g &nbsp;|&nbsp; Carboidratos: {total_carb:.1f}g &nbsp;|&nbsp; Lipídeos: {total_gord:.1f}g"
     elements.append(Paragraph(resumo_texto, styles['Normal']))
     
-    # Assinatura Profissional
     elements.append(Spacer(1, 40))
     elements.append(Paragraph("________________________________________________", ParagraphStyle('Line', parent=styles['Normal'], alignment=1)))
     elements.append(Paragraph("<b>Dra. Andressa Santos</b><br/>Nutricionista Responsável", ParagraphStyle('Sign', parent=styles['Normal'], alignment=1)))
