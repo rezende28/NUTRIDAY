@@ -1,0 +1,297 @@
+import pandas as pd
+import streamlit as st
+
+from modulos.calculos import (
+    calcular_imc,
+    classificar_imc,
+    calcular_peso_ideal,
+    somar_totais_diarios,
+)
+from modulos.pdf import criar_pdf_plano
+from modulos.taco import carregar_tabela_taco
+
+# Configuração da Página
+st.set_page_config(page_title="NutriDAY — Dra. Andressa Santos", layout="wide")
+
+# Estilização CSS Clean & Profissional (Emerald Corporate)
+st.markdown(
+    """
+<style>
+    .stApp {
+        background-color: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    /* Header Profissional */
+    .main-header {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        padding: 24px 32px;
+        border-radius: 12px;
+        color: white;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        margin-bottom: 25px;
+    }
+    .main-header h1 {
+        margin: 0;
+        font-size: 2.1rem;
+        font-weight: 700;
+        color: #ffffff !important;
+        letter-spacing: -0.5px;
+    }
+    .main-header p {
+        margin-top: 4px;
+        font-size: 0.95rem;
+        color: #e2e8f0;
+        font-weight: 400;
+    }
+
+    /* Card de Avaliação Antropométrica Customizado */
+    .imc-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    .imc-label {
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    .imc-value {
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 1.8rem;
+        margin-bottom: 8px;
+    }
+    .imc-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    .peso-ideal-box {
+        border-top: 1px solid #f1f5f9;
+        padding-top: 10px;
+        margin-top: 4px;
+        font-size: 0.9rem;
+        color: #334155;
+    }
+
+    /* Cores Personalizadas para as Classificações de IMC */
+    .badge-verde {
+        background-color: #dcfce7;
+        color: #15803d;
+    }
+    .badge-laranja {
+        background-color: #ffedd5;
+        color: #c2410c;
+    }
+    .badge-vermelho {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+
+    /* Botões */
+    .stButton>button {
+        border-radius: 8px;
+        border: none;
+        background-color: #059669;
+        color: white;
+        font-weight: 600;
+        padding: 10px 24px;
+        transition: background-color 0.2s ease;
+    }
+    .stButton>button:hover {
+        background-color: #047857;
+        color: white;
+    }
+
+    /* Abas */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 6px;
+        padding: 8px 16px;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        font-weight: 500;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #059669 !important;
+        color: white !important;
+        border-color: #059669 !important;
+    }
+
+    hr {
+        border-color: #e2e8f0;
+        margin: 28px 0;
+    }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+# Carregamento dos dados
+df_taco = carregar_tabela_taco()
+
+# Header
+st.markdown(
+    """
+<div class="main-header">
+    <h1>NutriDAY</h1>
+    <p>Prescrição Nutricional & Gestão Clínica | Dra. Andressa Santos</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+# Seção 1: Paciente & Avaliação Antropométrica
+col_dados, col_imc = st.columns([2, 1], gap="large")
+
+with col_dados:
+    st.markdown("### Identificação do Paciente")
+    nome_paciente = st.text_input("Nome Completo", "Lucas Mendes")
+
+    c_sexo, c_idade = st.columns(2)
+    sexo = c_sexo.selectbox("Sexo", ["Feminino", "Masculino"])
+    idade = c_idade.number_input(
+        "Idade (anos)", min_value=1, max_value=120, value=30, step=1
+    )
+
+    c1, c2 = st.columns(2)
+    peso = c1.number_input(
+        "Peso (kg)", min_value=1.0, max_value=300.0, value=70.0, step=0.1
+    )
+    altura = c2.number_input(
+        "Altura (m)", min_value=0.5, max_value=2.5, value=1.72, step=0.01
+    )
+
+imc = calcular_imc(peso, altura)
+classificacao = classificar_imc(imc)
+peso_ideal = calcular_peso_ideal(altura)
+
+# Definição dinâmica da cor do Badge do IMC
+if classificacao == "Abaixo do Peso":
+    badge_class = "badge-vermelho"
+elif classificacao == "Sobrepeso":
+    badge_class = "badge-laranja"
+elif "Obesidade" in classificacao:
+    badge_class = "badge-vermelho"
+else:  # Peso Normal
+    badge_class = "badge-verde"
+
+with col_imc:
+    st.markdown("### Avaliação Antropométrica")
+    st.markdown(
+        f"""
+    <div class="imc-card">
+        <div class="imc-label">IMC Atual</div>
+        <div class="imc-value">{imc:.2f} kg/m²</div>
+        <div class="imc-badge {badge_class}">{classificacao}</div>
+        <div class="peso-ideal-box">
+            <b>Peso Ideal Recomendado:</b> {peso_ideal:.1f} kg
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("---")
+
+# Seção 2: Refeições
+st.markdown("### Prescrição do Plano Alimentar")
+
+refeicoes_nomes = ["Desjejum", "Almoço", "Lanche da Tarde", "Jantar", "Ceia"]
+tabs = st.tabs(refeicoes_nomes)
+
+if "dieta" not in st.session_state:
+    st.session_state.dieta = {ref: [] for ref in refeicoes_nomes}
+
+for i, ref in enumerate(refeicoes_nomes):
+    with tabs[i]:
+        st.write(f"#### {ref}")
+        c_alimento, c_qtd, c_btn = st.columns([3, 1, 1], gap="medium")
+
+        lista_alimentos = df_taco["nome"].tolist() if not df_taco.empty else []
+        alimento_sel = c_alimento.selectbox(
+            "Selecione o alimento (TACO)", lista_alimentos, key=f"sel_{ref}"
+        )
+        qtd_gramas = c_qtd.number_input(
+            "Quantidade (g)",
+            min_value=5,
+            max_value=1000,
+            value=100,
+            step=5,
+            key=f"qtd_{ref}",
+        )
+
+        c_btn.markdown(
+            "<div style='padding-top: 28px;'></div>", unsafe_allow_html=True
+        )
+        if c_btn.button("Adicionar Alimento", key=f"btn_{ref}"):
+            if not df_taco.empty and alimento_sel:
+                row = df_taco[df_taco["nome"] == alimento_sel].iloc[0]
+                fator = qtd_gramas / 100.0
+                item = {
+                    "nome": alimento_sel,
+                    "quantidade_g": qtd_gramas,
+                    "energia_kcal": round(row.get("energia_kcal", 0.0) * fator, 1),
+                    "proteina_g": round(row.get("proteina_g", 0.0) * fator, 1),
+                    "carboidrato_g": round(row.get("carboidrato_g", 0.0) * fator, 1),
+                    "lipideos_g": round(row.get("lipideos_g", 0.0) * fator, 1),
+                }
+                st.session_state.dieta[ref].append(item)
+                st.toast(f"Alimento '{alimento_sel}' adicionado com sucesso.")
+
+        if st.session_state.dieta[ref]:
+            df_exibicao = pd.DataFrame(st.session_state.dieta[ref])
+            st.dataframe(df_exibicao, use_container_width=True)
+
+st.markdown("---")
+
+# Seção 3: Totais
+st.markdown("### Balanço Nutricional Diário")
+
+total_kcal, total_prot, total_carb, total_gord = somar_totais_diarios(
+    st.session_state.dieta
+)
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Valor Energético", f"{total_kcal:.1f} kcal")
+m2.metric("Proteínas", f"{total_prot:.1f} g")
+m3.metric("Carboidratos", f"{total_carb:.1f} g")
+m4.metric("Lipídeos", f"{total_gord:.1f} g")
+
+# Seção 4: Exportação PDF
+st.markdown("---")
+st.markdown("### Exportar Documento")
+
+if st.button("Gerar Relatório em PDF"):
+    pdf_data = criar_pdf_plano(
+        nome_paciente,
+        sexo,
+        idade,
+        peso,
+        altura,
+        imc,
+        classificacao,
+        peso_ideal,
+        st.session_state.dieta,
+        total_kcal,
+        total_prot,
+        total_carb,
+        total_gord,
+    )
+
+    st.download_button(
+        label="Baixar Plano Alimentar (PDF)",
+        data=pdf_data,
+        file_name=f"NutriDAY_{nome_paciente.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+    )
