@@ -44,52 +44,12 @@ st.markdown(
         font-weight: 400;
     }
 
-    .imc-card {
+    .card-metabolico {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 10px;
         padding: 20px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-    }
-    .imc-label {
-        color: #64748b;
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin-bottom: 4px;
-    }
-    .imc-value {
-        color: #0f172a;
-        font-weight: 700;
-        font-size: 1.8rem;
-        margin-bottom: 8px;
-    }
-    .imc-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-bottom: 12px;
-    }
-    .peso-ideal-box {
-        border-top: 1px solid #f1f5f9;
-        padding-top: 10px;
-        margin-top: 4px;
-        font-size: 0.9rem;
-        color: #334155;
-    }
-
-    .badge-verde {
-        background-color: #dcfce7;
-        color: #15803d;
-    }
-    .badge-laranja {
-        background-color: #ffedd5;
-        color: #c2410c;
-    }
-    .badge-vermelho {
-        background-color: #fee2e2;
-        color: #b91c1c;
     }
 
     .stButton>button {
@@ -138,10 +98,10 @@ if "alimentos_custom" not in st.session_state:
         columns=["nome", "energia_kcal", "proteina_g", "carboidrato_g", "lipideos_g"]
     )
 
-# Carregamento da tabela TACO oficial
+# Carregamento da tabela TACO
 df_taco_base = carregar_tabela_taco()
 
-# Unificação das tabelas (TACO + Alimentos Personalizados)
+# Unificação das tabelas
 if not st.session_state.alimentos_custom.empty:
     df_taco = pd.concat([df_taco_base, st.session_state.alimentos_custom], ignore_index=True)
 else:
@@ -152,75 +112,89 @@ st.markdown(
     """
 <div class="main-header">
     <h1>NutriDAY</h1>
-    <p>Prescrição Nutricional & Gestão Clínica | Dra. Andressa Santos</p>
+    <p>Prescrição Nutricional & Esportiva | Dra. Andressa Santos</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# Seção 1: Paciente & Avaliação Antropométrica
-col_dados, col_imc = st.columns([2, 1], gap="large")
+# Seção 1: Paciente e Perfil Esportivo
+st.markdown("### Identificação e Perfil do Paciente")
+col_dados, col_esporte = st.columns([1, 1], gap="large")
 
 with col_dados:
-    st.markdown("### Identificação do Paciente")
     nome_paciente = st.text_input("Nome Completo", "Lucas Mendes")
-
     c_sexo, c_idade = st.columns(2)
-    sexo = c_sexo.selectbox("Sexo", ["Feminino", "Masculino"])
-    idade = c_idade.number_input(
-        "Idade (anos)", min_value=1, max_value=120, value=30, step=1
-    )
+    sexo = c_sexo.selectbox("Sexo Biológico", ["Masculino", "Feminino"])
+    idade = c_idade.number_input("Idade (anos)", min_value=1, max_value=120, value=28, step=1)
 
     c1, c2 = st.columns(2)
-    peso = c1.number_input(
-        "Peso (kg)", min_value=1.0, max_value=300.0, value=70.0, step=0.1
-    )
-    altura = c2.number_input(
-        "Altura (m)", min_value=0.5, max_value=2.5, value=1.72, step=0.01
+    peso = c1.number_input("Peso (kg)", min_value=1.0, max_value=300.0, value=75.0, step=0.1)
+    altura = c2.number_input("Altura (m)", min_value=0.5, max_value=2.5, value=1.78, step=0.01)
+
+with col_esporte:
+    modalidade = st.text_input("Modalidade Esportiva / Treino", "Musculação 5x/semana + Corrida")
+    
+    fator_ativ_map = {
+        "Sedentário (Pouco ou nenhum exercício)": 1.2,
+        "Leve (Treino 1 a 3 dias/semana)": 1.375,
+        "Moderado (Treino 3 a 5 dias/semana)": 1.55,
+        "Intenso (Treino pesado 6 a 7 dias/semana)": 1.725,
+        "Muito Intenso / Atleta (2 treinos por dia)": 1.9,
+    }
+    fator_sel = st.selectbox("Nível de Atividade Física", list(fator_ativ_map.keys()), index=2)
+    fator_atividade = fator_ativ_map[fator_sel]
+
+    objetivo = st.selectbox(
+        "Objetivo Nutricional",
+        ["Hipertrofia (Ganho de Massa)", "Emagrecimento / Definição", "Manutenção e Performance"],
     )
 
     restricoes = st.text_input(
-        "Restrições Alimentares / Alergias / Intolerâncias",
-        placeholder="Ex: Intolerância à Lactose, Alergia a Frutos do Mar, Não consome glúten...",
+        "Restrições Alimentares / Suplementação Atual",
+        placeholder="Ex: Intolerância à Lactose, Usa Creatina 5g e Whey...",
     )
 
+# Cálculos Metabólicos & Esportivos
 imc = calcular_imc(peso, altura)
 classificacao = classificar_imc(imc)
 peso_ideal = calcular_peso_ideal(altura)
 
-if classificacao == "Abaixo do Peso":
-    badge_class = "badge-vermelho"
-elif classificacao == "Sobrepeso":
-    badge_class = "badge-laranja"
-elif "Obesidade" in classificacao:
-    badge_class = "badge-vermelho"
+# TMB (Mifflin-St Jeor)
+if sexo == "Masculino":
+    tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade) + 5
 else:
-    badge_class = "badge-verde"
+    tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade) - 161
 
-with col_imc:
-    st.markdown("### Avaliação Antropométrica")
-    st.markdown(
-        f"""
-    <div class="imc-card">
-        <div class="imc-label">IMC Atual</div>
-        <div class="imc-value">{imc:.2f} kg/m²</div>
-        <div class="imc-badge {badge_class}">{classificacao}</div>
-        <div class="peso-ideal-box">
-            <b>Peso Ideal Recomendado:</b> {peso_ideal:.1f} kg
-        </div>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
+get = tmb * fator_atividade
+
+# Meta Calórica
+if objetivo == "Hipertrofia (Ganho de Massa)":
+    meta_kcal = get + 400
+elif objetivo == "Emagrecimento / Definição":
+    meta_kcal = get - 500
+else:
+    meta_kcal = get
 
 st.markdown("---")
 
-# Seção de Cadastro de Novo Alimento Personalizado
-with st.expander("Cadastrar Novo Alimento (Personalizado)", expanded=False):
-    st.write("Insira os dados nutricionais referentes a **100g** do alimento:")
+# Seção 2: Painel de Avaliação Energética
+st.markdown("### Avaliação Metabólica e Metas Calóricas")
+m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+
+m_col1.metric("IMC", f"{imc:.1f} kg/m²", classificacao)
+m_col2.metric("Basal (TMB)", f"{int(tmb)} kcal")
+m_col3.metric("Gasto Total (GET)", f"{int(get)} kcal")
+m_col4.metric("Meta Calórica Diária", f"{int(meta_kcal)} kcal")
+
+st.markdown("---")
+
+# Seção 3: Cadastro de Alimentos Personalizados
+with st.expander("Cadastrar Novo Alimento / Suplemento (Fora da TACO)", expanded=False):
+    st.write("Insira os dados nutricionais referentes a **100g** do alimento ou suplemento:")
     c_nome, c_kcal, c_prot, c_carb, c_gord = st.columns(5)
-    
-    novo_nome = c_nome.text_input("Nome do Alimento", placeholder="Ex: Whey Protein Isolado")
+
+    novo_nome = c_nome.text_input("Nome do Alimento", placeholder="Ex: Whey Iso, Barra de Proteína")
     nova_kcal = c_kcal.number_input("Kcal (100g)", min_value=0.0, step=1.0, value=0.0)
     nova_prot = c_prot.number_input("Proteína g (100g)", min_value=0.0, step=0.1, value=0.0)
     novo_carb = c_carb.number_input("Carboidrato g (100g)", min_value=0.0, step=0.1, value=0.0)
@@ -245,10 +219,17 @@ with st.expander("Cadastrar Novo Alimento (Personalizado)", expanded=False):
 
 st.markdown("---")
 
-# Seção 2: Refeições
-st.markdown("### Prescrição do Plano Alimentar")
+# Seção 4: Prescrição do Plano Alimentar
+st.markdown("### Prescrição das Refeições")
 
-refeicoes_nomes = ["Desjejum", "Almoço", "Lanche da Tarde", "Jantar", "Ceia"]
+refeicoes_nomes = [
+    "Café da Manhã",
+    "Lanche da Manhã (Pré-Treino)",
+    "Almoço",
+    "Lanche da Tarde (Pós-Treino)",
+    "Jantar",
+    "Ceia",
+]
 tabs = st.tabs(refeicoes_nomes)
 
 if "dieta" not in st.session_state:
@@ -260,21 +241,12 @@ for i, ref in enumerate(refeicoes_nomes):
         c_alimento, c_qtd, c_btn = st.columns([3, 1, 1], gap="medium")
 
         lista_alimentos = df_taco["nome"].tolist() if not df_taco.empty else []
-        alimento_sel = c_alimento.selectbox(
-            "Selecione o alimento", lista_alimentos, key=f"sel_{ref}"
-        )
+        alimento_sel = c_alimento.selectbox("Selecione o alimento", lista_alimentos, key=f"sel_{ref}")
         qtd_gramas = c_qtd.number_input(
-            "Quantidade (g)",
-            min_value=5,
-            max_value=1000,
-            value=100,
-            step=5,
-            key=f"qtd_{ref}",
+            "Quantidade (g)", min_value=5, max_value=1000, value=100, step=5, key=f"qtd_{ref}"
         )
 
-        c_btn.markdown(
-            "<div style='padding-top: 28px;'></div>", unsafe_allow_html=True
-        )
+        c_btn.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
         if c_btn.button("Adicionar Alimento", key=f"btn_{ref}"):
             if not df_taco.empty and alimento_sel:
                 row = df_taco[df_taco["nome"] == alimento_sel].iloc[0]
@@ -292,7 +264,6 @@ for i, ref in enumerate(refeicoes_nomes):
 
         if st.session_state.dieta[ref]:
             st.markdown("##### Alimentos Adicionados:")
-            
             items_para_remover = []
             for idx, item in enumerate(st.session_state.dieta[ref]):
                 col_item_nome, col_item_qtd, col_item_kcal, col_item_del = st.columns([3, 1, 1, 1])
@@ -301,7 +272,7 @@ for i, ref in enumerate(refeicoes_nomes):
                 col_item_kcal.write(f"{item['energia_kcal']} kcal")
                 if col_item_del.button("Remover", key=f"del_{ref}_{idx}"):
                     items_para_remover.append(idx)
-            
+
             if items_para_remover:
                 for idx in reversed(items_para_remover):
                     removido = st.session_state.dieta[ref].pop(idx)
@@ -310,20 +281,22 @@ for i, ref in enumerate(refeicoes_nomes):
 
 st.markdown("---")
 
-# Seção 3: Totais
-st.markdown("### Balanço Nutricional Diário")
+# Seção 5: Balanço Nutricional e Métricas g/kg
+st.markdown("### Balanço Nutricional e Relatório Esportivo (g/kg)")
 
-total_kcal, total_prot, total_carb, total_gord = somar_totais_diarios(
-    st.session_state.dieta
-)
+total_kcal, total_prot, total_carb, total_gord = somar_totais_diarios(st.session_state.dieta)
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Valor Energético", f"{total_kcal:.1f} kcal")
-m2.metric("Proteínas", f"{total_prot:.1f} g")
-m3.metric("Carboidratos", f"{total_carb:.1f} g")
-m4.metric("Lipídeos", f"{total_gord:.1f} g")
+prot_gkg = total_prot / peso if peso > 0 else 0
+carb_gkg = total_carb / peso if peso > 0 else 0
+gord_gkg = total_gord / peso if peso > 0 else 0
 
-# Seção 4: Exportação PDF
+b1, b2, b3, b4 = st.columns(4)
+b1.metric("Energia Prescrita", f"{total_kcal:.1f} kcal", f"Meta: {int(meta_kcal)} kcal")
+b2.metric("Proteína Total", f"{total_prot:.1f} g", f"{prot_gkg:.2f} g/kg")
+b3.metric("Carboidrato Total", f"{total_carb:.1f} g", f"{carb_gkg:.2f} g/kg")
+b4.metric("Gordura Total", f"{total_gord:.1f} g", f"{gord_gkg:.2f} g/kg")
+
+# Seção 6: Exportação em PDF
 st.markdown("---")
 st.markdown("### Exportar Documento")
 
