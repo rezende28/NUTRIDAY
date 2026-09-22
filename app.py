@@ -132,8 +132,20 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Carregamento dos dados
-df_taco = carregar_tabela_taco()
+# Inicialização da lista de alimentos customizados
+if "alimentos_custom" not in st.session_state:
+    st.session_state.alimentos_custom = pd.DataFrame(
+        columns=["nome", "energia_kcal", "proteina_g", "carboidrato_g", "lipideos_g"]
+    )
+
+# Carregamento da tabela TACO oficial
+df_taco_base = carregar_tabela_taco()
+
+# Unificação das tabelas (TACO + Alimentos Personalizados)
+if not st.session_state.alimentos_custom.empty:
+    df_taco = pd.concat([df_taco_base, st.session_state.alimentos_custom], ignore_index=True)
+else:
+    df_taco = df_taco_base
 
 # Header
 st.markdown(
@@ -203,6 +215,36 @@ with col_imc:
 
 st.markdown("---")
 
+# Seção de Cadastro de Novo Alimento Personalizado
+with st.expander("➕ Cadastrar Novo Alimento (Fora da Tabela TACO)", expanded=False):
+    st.write("Insira os dados nutricionais referente a **100g** do alimento:")
+    c_nome, c_kcal, c_prot, c_carb, c_gord = st.columns(5)
+    
+    novo_nome = c_nome.text_input("Nome do Alimento", placeholder="Ex: Whey Protein Pro")
+    nova_kcal = c_kcal.number_input("Kcal (100g)", min_value=0.0, step=1.0, value=0.0)
+    nova_prot = c_prot.number_input("Proteína g (100g)", min_value=0.0, step=0.1, value=0.0)
+    novo_carb = c_carb.number_input("Carboidrato g (100g)", min_value=0.0, step=0.1, value=0.0)
+    nova_gord = c_gord.number_input("Gordura g (100g)", min_value=0.0, step=0.1, value=0.0)
+
+    if st.button("Salvar Alimento Personalizado"):
+        if novo_nome.strip():
+            novo_item = pd.DataFrame([{
+                "nome": f"⭐ {novo_nome.strip()}",
+                "energia_kcal": float(nova_kcal),
+                "proteina_g": float(nova_prot),
+                "carboidrato_g": float(novo_carb),
+                "lipideos_g": float(nova_gord),
+            }])
+            st.session_state.alimentos_custom = pd.concat(
+                [st.session_state.alimentos_custom, novo_item], ignore_index=True
+            )
+            st.success(f"Alimento '{novo_nome}' adicionado com sucesso!")
+            st.rerun()
+        else:
+            st.warning("Informe o nome do alimento.")
+
+st.markdown("---")
+
 # Seção 2: Refeições
 st.markdown("### Prescrição do Plano Alimentar")
 
@@ -219,7 +261,7 @@ for i, ref in enumerate(refeicoes_nomes):
 
         lista_alimentos = df_taco["nome"].tolist() if not df_taco.empty else []
         alimento_sel = c_alimento.selectbox(
-            "Selecione o alimento (TACO)", lista_alimentos, key=f"sel_{ref}"
+            "Selecione o alimento (TACO / Personalizados)", lista_alimentos, key=f"sel_{ref}"
         )
         qtd_gramas = c_qtd.number_input(
             "Quantidade (g)",
@@ -240,10 +282,10 @@ for i, ref in enumerate(refeicoes_nomes):
                 item = {
                     "nome": alimento_sel,
                     "quantidade_g": qtd_gramas,
-                    "energia_kcal": round(row.get("energia_kcal", 0.0) * fator, 1),
-                    "proteina_g": round(row.get("proteina_g", 0.0) * fator, 1),
-                    "carboidrato_g": round(row.get("carboidrato_g", 0.0) * fator, 1),
-                    "lipideos_g": round(row.get("lipideos_g", 0.0) * fator, 1),
+                    "energia_kcal": round(float(row.get("energia_kcal", 0.0)) * fator, 1),
+                    "proteina_g": round(float(row.get("proteina_g", 0.0)) * fator, 1),
+                    "carboidrato_g": round(float(row.get("carboidrato_g", 0.0)) * fator, 1),
+                    "lipideos_g": round(float(row.get("lipideos_g", 0.0)) * fator, 1),
                 }
                 st.session_state.dieta[ref].append(item)
                 st.toast(f"Alimento '{alimento_sel}' adicionado com sucesso.")
@@ -251,7 +293,6 @@ for i, ref in enumerate(refeicoes_nomes):
         if st.session_state.dieta[ref]:
             st.markdown("##### Alimentos Adicionados:")
             
-            # Tabela interativa com opção de remoção
             items_para_remover = []
             for idx, item in enumerate(st.session_state.dieta[ref]):
                 col_item_nome, col_item_qtd, col_item_kcal, col_item_del = st.columns([3, 1, 1, 1])
@@ -261,7 +302,6 @@ for i, ref in enumerate(refeicoes_nomes):
                 if col_item_del.button("🗑️ Remover", key=f"del_{ref}_{idx}"):
                     items_para_remover.append(idx)
             
-            # Executa a remoção se algum botão foi clicado
             if items_para_remover:
                 for idx in reversed(items_para_remover):
                     removido = st.session_state.dieta[ref].pop(idx)
