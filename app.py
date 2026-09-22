@@ -239,7 +239,7 @@ with st.expander("Cadastrar Novo Alimento / Suplemento (Fora da TACO)", expanded
 st.markdown("---")
 
 # Seção 4: Prescrição do Plano Alimentar
-st.markdown("### Prescrição das Refeições")
+st.markdown("### Plano Alimentar")
 
 tabs = st.tabs(refeicoes_nomes)
 
@@ -310,7 +310,7 @@ st.markdown("### Exportar Documento")
 
 if st.button("Gerar Relatório em PDF"):
     try:
-        pdf_data = criar_pdf_plano(
+        pdf_bytes = criar_pdf_plano(
             nome_paciente=str(nome_paciente or "Paciente"),
             sexo=str(sexo),
             idade=int(idade or 0),
@@ -326,12 +326,16 @@ if st.button("Gerar Relatório em PDF"):
             total_carb=float(total_carb or 0.0),
             total_gord=float(total_gord or 0.0),
         )
-
-        st.download_button(
-            label="Baixar Plano Alimentar (PDF)",
-            data=pdf_data,
-            file_name=f"NutriDAY_{str(nome_paciente).replace(' ', '_')}.pdf",
-            mime="application/pdf",
-        )
+        st.session_state["pdf_pronto"] = pdf_bytes
+        st.success("PDF gerado com sucesso! Clique no botão abaixo para descarregar.")
     except Exception as e:
         st.error(f"Erro ao gerar o relatório em PDF: {str(e)}")
+
+# Exibe o botão de download caso o PDF já tenha sido gerado
+if "pdf_pronto" in st.session_state and st.session_state["pdf_pronto"] is not None:
+    st.download_button(
+        label="📥 Baixar Plano Alimentar (PDF)",
+        data=st.session_state["pdf_pronto"],
+        file_name=f"NutriDAY_{str(nome_paciente).replace(' ', '_')}.pdf",
+        mime="application/pdf",
+    )
