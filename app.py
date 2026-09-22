@@ -216,20 +216,20 @@ with col_imc:
 st.markdown("---")
 
 # Seção de Cadastro de Novo Alimento Personalizado
-with st.expander("➕ Cadastrar Novo Alimento (Fora da Tabela TACO)", expanded=False):
-    st.write("Insira os dados nutricionais referente a **100g** do alimento:")
+with st.expander("Cadastrar Novo Alimento (Personalizado)", expanded=False):
+    st.write("Insira os dados nutricionais referentes a **100g** do alimento:")
     c_nome, c_kcal, c_prot, c_carb, c_gord = st.columns(5)
     
-    novo_nome = c_nome.text_input("Nome do Alimento", placeholder="Ex: Whey Protein Pro")
+    novo_nome = c_nome.text_input("Nome do Alimento", placeholder="Ex: Whey Protein Isolado")
     nova_kcal = c_kcal.number_input("Kcal (100g)", min_value=0.0, step=1.0, value=0.0)
     nova_prot = c_prot.number_input("Proteína g (100g)", min_value=0.0, step=0.1, value=0.0)
     novo_carb = c_carb.number_input("Carboidrato g (100g)", min_value=0.0, step=0.1, value=0.0)
     nova_gord = c_gord.number_input("Gordura g (100g)", min_value=0.0, step=0.1, value=0.0)
 
-    if st.button("Salvar Alimento Personalizado"):
+    if st.button("Salvar Alimento"):
         if novo_nome.strip():
             novo_item = pd.DataFrame([{
-                "nome": f"⭐ {novo_nome.strip()}",
+                "nome": f"[Personalizado] {novo_nome.strip()}",
                 "energia_kcal": float(nova_kcal),
                 "proteina_g": float(nova_prot),
                 "carboidrato_g": float(novo_carb),
@@ -238,7 +238,7 @@ with st.expander("➕ Cadastrar Novo Alimento (Fora da Tabela TACO)", expanded=F
             st.session_state.alimentos_custom = pd.concat(
                 [st.session_state.alimentos_custom, novo_item], ignore_index=True
             )
-            st.success(f"Alimento '{novo_nome}' adicionado com sucesso!")
+            st.success(f"Alimento '{novo_nome}' cadastrado com sucesso!")
             st.rerun()
         else:
             st.warning("Informe o nome do alimento.")
@@ -261,7 +261,7 @@ for i, ref in enumerate(refeicoes_nomes):
 
         lista_alimentos = df_taco["nome"].tolist() if not df_taco.empty else []
         alimento_sel = c_alimento.selectbox(
-            "Selecione o alimento (TACO / Personalizados)", lista_alimentos, key=f"sel_{ref}"
+            "Selecione o alimento", lista_alimentos, key=f"sel_{ref}"
         )
         qtd_gramas = c_qtd.number_input(
             "Quantidade (g)",
@@ -299,7 +299,7 @@ for i, ref in enumerate(refeicoes_nomes):
                 col_item_nome.write(f"• **{item['nome']}**")
                 col_item_qtd.write(f"{item['quantidade_g']} g")
                 col_item_kcal.write(f"{item['energia_kcal']} kcal")
-                if col_item_del.button("🗑️ Remover", key=f"del_{ref}_{idx}"):
+                if col_item_del.button("Remover", key=f"del_{ref}_{idx}"):
                     items_para_remover.append(idx)
             
             if items_para_remover:
