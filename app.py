@@ -92,6 +92,25 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Definir as refeições do sistema
+refeicoes_nomes = [
+    "Café da Manhã",
+    "Lanche da Manhã (Pré-Treino)",
+    "Almoço",
+    "Lanche da Tarde (Pós-Treino)",
+    "Jantar",
+    "Ceia",
+]
+
+# Inicialização segura da sessão de dieta
+if "dieta" not in st.session_state:
+    st.session_state.dieta = {ref: [] for ref in refeicoes_nomes}
+else:
+    # Garante que qualquer refeição nova seja adicionada ao estado atual sem gerar KeyError
+    for ref in refeicoes_nomes:
+        if ref not in st.session_state.dieta:
+            st.session_state.dieta[ref] = []
+
 # Inicialização da lista de alimentos customizados
 if "alimentos_custom" not in st.session_state:
     st.session_state.alimentos_custom = pd.DataFrame(
@@ -222,18 +241,7 @@ st.markdown("---")
 # Seção 4: Prescrição do Plano Alimentar
 st.markdown("### Prescrição das Refeições")
 
-refeicoes_nomes = [
-    "Café da Manhã",
-    "Lanche da Manhã (Pré-Treino)",
-    "Almoço",
-    "Lanche da Tarde (Pós-Treino)",
-    "Jantar",
-    "Ceia",
-]
 tabs = st.tabs(refeicoes_nomes)
-
-if "dieta" not in st.session_state:
-    st.session_state.dieta = {ref: [] for ref in refeicoes_nomes}
 
 for i, ref in enumerate(refeicoes_nomes):
     with tabs[i]:
@@ -262,7 +270,7 @@ for i, ref in enumerate(refeicoes_nomes):
                 st.session_state.dieta[ref].append(item)
                 st.toast(f"Alimento '{alimento_sel}' adicionado com sucesso.")
 
-        if st.session_state.dieta[ref]:
+        if st.session_state.dieta.get(ref):
             st.markdown("##### Alimentos Adicionados:")
             items_para_remover = []
             for idx, item in enumerate(st.session_state.dieta[ref]):
