@@ -363,21 +363,20 @@ if menu_opcao == "Prescrição Nutricional":
                 if not df_taco.empty and alimento_sel:
                     row = df_taco[df_taco["nome"] == alimento_sel].iloc[0]
                     fator = qtd_gramas / 100.0
+
+                    # Tratamento para valores nulos (NaN) da tabela TACO
+                    kcal_val = float(pd.Series(row.get("energia_kcal")).fillna(0).iloc[0])
+                    prot_val = float(pd.Series(row.get("proteina_g")).fillna(0).iloc[0])
+                    carb_val = float(pd.Series(row.get("carboidrato_g")).fillna(0).iloc[0])
+                    gord_val = float(pd.Series(row.get("lipideos_g")).fillna(0).iloc[0])
+
                     item = {
                         "nome": alimento_sel,
                         "quantidade_g": qtd_gramas,
-                        "energia_kcal": round(
-                            float(row.get("energia_kcal", 0.0)) * fator, 1
-                        ),
-                        "proteina_g": round(
-                            float(row.get("proteina_g", 0.0)) * fator, 1
-                        ),
-                        "carboidrato_g": round(
-                            float(row.get("carboidrato_g", 0.0)) * fator, 1
-                        ),
-                        "lipideos_g": round(
-                            float(row.get("lipideos_g", 0.0)) * fator, 1
-                        ),
+                        "energia_kcal": round(kcal_val * fator, 1),
+                        "proteina_g": round(prot_val * fator, 1),
+                        "carboidrato_g": round(carb_val * fator, 1),
+                        "lipideos_g": round(gord_val * fator, 1),
                     }
                     st.session_state.dieta[ref].append(item)
                     st.toast(
