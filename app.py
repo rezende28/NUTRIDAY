@@ -1,3 +1,4 @@
+import base64
 import pandas as pd
 import streamlit as st
 
@@ -44,6 +45,24 @@ st.markdown(
     section[data-testid="stSidebar"] { background-color: #F8FAF9 !important; border-right: 1px solid #EFE6FA !important; }
     div[data-testid="stMetricValue"] { color: #9B51E0 !important; font-weight: 700 !important; }
     hr { border-color: #EFE6FA; margin: 24px 0; }
+    
+    /* Estilo do botão customizado para abrir PDF em nova aba */
+    .btn-open-pdf {
+        display: inline-block;
+        background-color: #9B51E0;
+        color: white !important;
+        font-weight: 600;
+        padding: 10px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        text-align: center;
+        margin-top: 10px;
+    }
+    .btn-open-pdf:hover {
+        background-color: #8230D8;
+        color: white !important;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -289,12 +308,15 @@ if menu_opcao == "Prescrição Nutricional":
             st.error(f"Erro ao gerar o relatório em PDF: {str(e)}")
 
     if "pdf_pronto" in st.session_state and st.session_state["pdf_pronto"] is not None:
-        st.download_button(
-            label="Baixar Plano Alimentar (PDF)",
-            data=st.session_state["pdf_pronto"],
-            file_name=f"NutriDAY_{str(nome_paciente).replace(' ', '_')}.pdf",
-            mime="application/pdf",
-        )
+        b64_pdf = base64.b64encode(st.session_state["pdf_pronto"]).decode("utf-8")
+        
+        # Gera o botão HTML/JS para abrir em nova aba
+        pdf_display = f"""
+            <a href="data:application/pdf;base64,{b64_pdf}" target="_blank" class="btn-open-pdf">
+                Visualizar e Imprimir PDF (Nova Aba)
+            </a>
+        """
+        st.markdown(pdf_display, unsafe_allow_html=True)
 
 elif menu_opcao == "Fichas dos Pacientes":
     st.markdown(
