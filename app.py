@@ -13,7 +13,6 @@ from modulos.taco import carregar_tabela_taco
 
 try:
     import modulos.database as db
-
     HAS_DB = True
 except ImportError:
     HAS_DB = False
@@ -46,7 +45,6 @@ st.markdown(
     div[data-testid="stMetricValue"] { color: #9B51E0 !important; font-weight: 700 !important; }
     hr { border-color: #EFE6FA; margin: 24px 0; }
     
-    /* Estilo do botão customizado para abrir PDF em nova aba */
     .btn-open-pdf {
         display: inline-block;
         background-color: #9B51E0;
@@ -262,8 +260,18 @@ if menu_opcao == "Prescrição Nutricional":
 
     st.markdown("---")
     st.markdown("### Guardar Ficha do Paciente")
-    if st.button("Guardar Ficha do Paciente na Sessão"):
+    if st.button("Guardar Ficha do Paciente"):
+        p_id = None
+        if HAS_DB:
+            try:
+                p_id = db.salvar_paciente_db(
+                    nome_paciente, sexo, idade, peso, altura, imc, modalidade, objetivo, total_kcal, meta_kcal
+                )
+            except Exception as e:
+                pass
+
         ficha_nova = {
+            "id": p_id,
             "nome": nome_paciente,
             "sexo": sexo,
             "idade": idade,
@@ -276,7 +284,7 @@ if menu_opcao == "Prescrição Nutricional":
             "meta_kcal": meta_kcal,
         }
         st.session_state.fichas_pacientes.append(ficha_nova)
-        st.success(f"Ficha de {nome_paciente} salva com sucesso!")
+        st.success(f"Ficha de {nome_paciente} salva permanentemente com sucesso!")
 
     st.markdown("---")
     st.markdown("### Exportar Documento")
@@ -309,8 +317,6 @@ if menu_opcao == "Prescrição Nutricional":
 
     if "pdf_pronto" in st.session_state and st.session_state["pdf_pronto"] is not None:
         b64_pdf = base64.b64encode(st.session_state["pdf_pronto"]).decode("utf-8")
-        
-        # Gera o botão HTML/JS para abrir em nova aba
         pdf_display = f"""
             <a href="data:application/pdf;base64,{b64_pdf}" target="_blank" class="btn-open-pdf">
                 Visualizar e Imprimir PDF (Nova Aba)
@@ -331,26 +337,45 @@ elif menu_opcao == "Fichas dos Pacientes":
 
     st.subheader("Pacientes Cadastrados")
 
-    if st.session_state.fichas_pacientes:
-        for idx, ficha in enumerate(st.session_state.fichas_pacientes):
-            with st.expander(f"Paciente: {ficha['nome']} — {ficha['objetivo']}"):
+    # Carrega do banco de dados se disponível
+    pacientes_lista = []
+    if HAS_DB:
+        try:
+            pacientes_lista = db.listar_pacientes_db()
+        except Exception:
+            pacientes_lista = st.session_state.fichas_pacientes
+    else:
+        pacientes_lista = st.session_state.fichas_pacientes
+
+    if pacientes_lista:
+        for idx, ficha in enumerate(pacientes_lista):
+            p_id = ficha.get("id")
+            nome_val = ficha.get("nome", "")
+            obj_val = ficha.get("objetivo", "")
+            
+            with st.expander(f"Paciente: {nome_val} — {obj_val}"):
                 col_e1, col_e2, col_e3 = st.columns(3)
-                ficha["nome"] = col_e1.text_input("Nome Completo", value=ficha["nome"], key=f"f_nome_{idx}")
-                ficha["idade"] = col_e2.number_input("Idade", value=int(ficha["idade"]), key=f"f_idade_{idx}")
-                ficha["sexo"] = col_e3.selectbox("Sexo", ["Masculino", "Feminino"], index=0 if ficha["sexo"] == "Masculino" else 1, key=f"f_sexo_{idx}")
+                novo_nome = col_e1.text_input("Nome Completo", value=nome_val, key=f"f_nome_{idx}")
+                nova_idade = col_e2.number_input("Idade", value=int(ficha.get("idade", 0)), key=f"f_idade_{idx}")
+                novo_sexo = col_e3.selectbox("Sexo", ["Masculino", "Feminino"], index=0 if ficha.get("sexo") == "Masculino" else 1, key=f"f_sexo_{idx}")
 
                 col_e4, col_e5, col_e6 = st.columns(3)
-                ficha["peso"] = col_e4.number_input("Peso (kg)", value=float(ficha["peso"]), key=f"f_peso_{idx}")
-                ficha["altura"] = col_e5.number_input("Altura (m)", value=float(ficha["altura"]), key=f"f_altura_{idx}")
-                ficha["modalidade"] = col_e6.text_input("Treino / Modalidade", value=ficha.get("modalidade", ""), key=f"f_mod_{idx}")
+                novo_peso = col_e4.number_input("Peso (kg)", value=float(ficha.get("peso", 0.0)), key=f"f_peso_{idx}")
+                nova_altura = col_e5.number_input("Altura (m)", value=float(ficha.get("altura", 0.0)), key=f"f_altura_{idx}")
+                nova_mod = col_e6.text_input("Treino / Modalidade", value=ficha.get("modalidade", ""), key=f"f_mod_{idx}")
 
                 col_b1, col_b2 = st.columns(2)
                 if col_b1.button("Salvar Alterações", key=f"save_f_{idx}"):
+                    if HAS_DB and p_id:
+                        db.atualizar_paciente_db(p_id, novo_nome, novo_sexo, nova_idade, novo_peso, nova_altura, nova_mod)
                     st.success("Ficha atualizada com sucesso!")
                     st.rerun()
 
                 if col_b2.button("Excluir Ficha", key=f"del_f_{idx}"):
-                    st.session_state.fichas_pacientes.pop(idx)
+                    if HAS_DB and p_id:
+                        db.deletar_paciente_db(p_id)
+                    else:
+                        st.session_state.fichas_pacientes.pop(idx)
                     st.success("Ficha excluída com sucesso!")
                     st.rerun()
     else:

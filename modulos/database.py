@@ -1,61 +1,114 @@
-import pandas as pd
-import sqlalchemy
-import streamlit as st
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-
-# Conecta ao banco usando os dados do Secrets
 def get_db_connection():
-    db_url = st.secrets["postgres"]["url"]
-    engine = sqlalchemy.create_engine(db_url)
-    return engine
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        return None
+    return psycopg2.connect(db_url)
 
-
-# Cria as tabelas iniciais caso não existam
 def inicializar_banco():
-    engine = get_db_connection()
-    with engine.connect() as conn:
-        conn.execute(
-            sqlalchemy.text(
-                """
-            CREATE TABLE IF NOT EXISTS alimentos_custom (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                energia_kcal FLOAT,
-                proteina_g FLOAT,
-                carboidrato_g FLOAT,
-                lipideos_g FLOAT
-            );
-        """
-            )
-        )
-        conn.commit()
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cur:
+            # Tabela de alimentos personalizados
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS alimentos_customizados (
+                    id SERIAL PRIMARY KEY,
+                    nome VARCHAR(255) NOT NULL,
+                    energia_kcal FLOAT NOT NULL,
+                    proteina_g FLOAT NOT NULL,
+                    carboidrato_g FLOAT NOT NULL,
+                    lipideos_g FLOAT NOT NULL
+                );
+            """)
+            # Tabela de pacientes
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pacientes (
+                    id SERIAL PRIMARY KEY,
+                    nome VARCHAR(255) NOT NULL,
+                    sexo VARCHAR(50),
+                    idade INT,
+                    peso FLOAT,
+                    altura FLOAT,
+                    imc FLOAT,
+                    modalidade VARCHAR(255),
+                    objetivo VARCHAR(255),
+                    total_kcal FLOAT,
+                    meta_kcal FLOAT
+                );
+            """)
+            conn.commit()
+    finally:
+        conn.close()
 
+def salvar_paciente_db(nome, sexo, idade, peso, altura, imc, modalidade, objetivo, total_kcal, meta_kcal):
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO pacientes (nome, sexo, idade, peso, altura, imc, modalidade, objetivo, total_kcal, meta_kcal)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id;
+            """, (nome, sexo, idade, peso, altura, imc, modalidade, objetivo, total_kcal, meta_kcal))
+            paciente_id = cur.fetchone()[0]
+            conn.commit()
+            return paciente_id
+    finally:
+        conn.close()
 
-# Carrega os alimentos do banco
-def carregar_alimentos_custom():
-    engine = get_db_connection()
-    query = "SELECT nome, energia_kcal, proteina_g, carboidrato_g, lipideos_g FROM alimentos_custom"
-    return pd.read_sql(query, engine)
+def listar_pacientes_db():
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM pacientes ORDER BY id DESC;")
+            return cur.fetchall()
+    finally:
+        conn.close()
 
+def atualizar_paciente_db(p_id, nome, sexo, idade, peso, altura, modalidade):
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE pacientes
+                SET nome = %s, sexo = %s, idade = %s, peso = %s, altura = %s, modalidade = %s
+                WHERE id = %s;
+            """, (nome, sexo, idade, peso, altura, modalidade, p_id))
+            conn.commit()
+    finally:
+        conn.close()
 
-# Salva um novo alimento personalizado
+def deletar_paciente_db(p_id):
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM pacientes WHERE id = %s;", (p_id,))
+            conn.commit()
+    finally:
+        conn.close()
+
 def salvar_alimento_custom(nome, kcal, prot, carb, gord):
-    engine = get_db_connection()
-    with engine.connect() as conn:
-        stmt = sqlalchemy.text(
-            """
-            INSERT INTO alimentos_custom (nome, energia_kcal, proteina_g, carboidrato_g, lipideos_g)
-            VALUES (:nome, :kcal, :prot, :carb, :gord)
-        """
-        )
-        conn.execute(
-            stmt,
-            {
-                "nome": f"[Personalizado] {nome}",
-                "kcal": kcal,
-                "prot": prot,
-                "carb": carb,
-                "gord": gord,
-            },
-        )
-        conn.commit()
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO alimentos_customizados (nome, energia_kcal, proteina_g, carboidrato_g, lipideos_g)
+                VALUES (%s, %s, %s, %s, %s);
+            """, (nome, kcal, prot, carb, gord))
+            conn.commit()
+    finally:
+        conn.close()
